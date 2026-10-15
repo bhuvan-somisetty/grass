@@ -2,7 +2,7 @@
 SPDX-FileCopyrightText: 2026 GRASS Development Team
 SPDX-License-Identifier: GPL-2.0-or-later
 
-Unit tests for grass.pygrass.vector.basic.Ilist
+Unit tests for grass.pygrass.vector.basic (Ilist, Cats, CatsList)
 """
 
 from unittest.mock import patch
@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from grass.pygrass.errors import GrassError
-from grass.pygrass.vector.basic import Ilist
+from grass.pygrass.vector.basic import Cats, CatsList, Ilist
 
 
 def test_init_empty():
@@ -153,3 +153,153 @@ def test_repr():
     """Test __repr__."""
     ilist = Ilist([1, 2, 3])
     assert repr(ilist) == "Ilist([1, 2, 3])"
+
+
+def test_cats_init_empty():
+    """Test empty Cats initialization."""
+    cats = Cats()
+    assert len(cats) == 0
+    assert cats.cat == []
+    assert cats.layer == []
+
+
+def test_cats_set_and_get():
+    """Test setting and getting categories in Cats."""
+    cats = Cats()
+    cats.set(0, layer=1)
+    cats.set(10, layer=1)
+    cats.set(20, layer=2)
+    assert len(cats) == 3
+    assert cats.cat == [0, 10, 20]
+    assert cats.layer == [1, 1, 2]
+
+    first_cat, n_found = cats.get(layer=1)
+    assert first_cat == 0
+    assert n_found == 2
+
+    first_cat_l2, n_found_l2 = cats.get(layer=2)
+    assert first_cat_l2 == 20
+    assert n_found_l2 == 1
+
+
+def test_cats_delete_zero():
+    """Test deleting category 0 does not delete other categories."""
+    cats = Cats()
+    cats.set(0, layer=1)
+    cats.set(1, layer=1)
+    cats.set(2, layer=1)
+    assert len(cats) == 3
+
+    cats.delete(0, layer=1)
+    assert len(cats) == 2
+    assert cats.cat == [1, 2]
+    assert cats.layer == [1, 1]
+
+
+def test_cats_delete_nonexistent_zero():
+    """Test deleting category 0 when absent raises ValueError."""
+    cats = Cats()
+    cats.set(1, layer=1)
+    with pytest.raises(ValueError, match="category\\(0\\) number does not exist"):
+        cats.delete(0, layer=1)
+    assert cats.cat == [1]
+
+
+def test_cats_delete_all_layer():
+    """Test deleting all categories of a layer when cat is None."""
+    cats = Cats()
+    cats.set(1, layer=1)
+    cats.set(2, layer=1)
+    cats.set(10, layer=2)
+    cats.delete(layer=1)
+    assert len(cats) == 1
+    assert cats.cat == [10]
+    assert cats.layer == [2]
+
+
+def test_cats_delete_nonexistent_layer():
+    """Test deleting from nonexistent layer raises ValueError."""
+    cats = Cats()
+    with pytest.raises(ValueError, match="does not exist"):
+        cats.delete(layer=99)
+
+
+def test_cats_contains_and_len():
+    """Test Cats __contains__ and __len__."""
+    cats = Cats()
+    cats.set(0, layer=1)
+    cats.set(5, layer=1)
+    assert len(cats) == 2
+    assert 0 in cats
+    assert 5 in cats
+    assert 99 not in cats
+
+
+def test_cats_reset():
+    """Test resetting Cats."""
+    cats = Cats()
+    cats.set(0, layer=1)
+    cats.set(1, layer=1)
+    cats.reset()
+    assert len(cats) == 0
+    assert cats.cat == []
+    assert cats.layer == []
+
+
+def test_cats_repr():
+    """Test Cats __repr__."""
+    cats = Cats()
+    cats.set(1, layer=1)
+    assert repr(cats) == "Cats([(1, 1)])"
+
+
+def test_cats_get_list():
+    """Test Cats.get_list returns an Ilist."""
+    cats = Cats()
+    cats.set(0, layer=1)
+    cats.set(5, layer=1)
+    ilist = cats.get_list(layer=1)
+    assert list(ilist) == [0, 5]
+
+    with pytest.raises(ValueError, match="does not exist"):
+        cats.get_list(layer=-1)
+
+
+def test_catslist_init():
+    """Test CatsList initialization."""
+    cl = CatsList()
+    assert len(cl) == 0
+    assert cl.n_ranges == 0
+    assert cl.min == []
+    assert cl.max == []
+
+
+def test_catslist_from_string():
+    """Test CatsList.from_string."""
+    cl = CatsList()
+    cl.from_string("2,3,5-9,20")
+    assert cl.min == [2, 3, 5, 20]
+    assert cl.max == [2, 3, 9, 20]
+    assert len(cl) == 4
+    assert 2 in cl
+    assert 7 in cl
+    assert 10 not in cl
+
+
+def test_catslist_from_array():
+    """Test CatsList.from_array."""
+    cl = CatsList()
+    cl.from_array([1, 2, 3, 5, 6, 7])
+    assert cl.min == [1, 5]
+    assert cl.max == [3, 7]
+    assert len(cl) == 2
+    assert 2 in cl
+    assert 6 in cl
+    assert 4 not in cl
+
+
+def test_catslist_repr():
+    """Test CatsList __repr__."""
+    cl = CatsList()
+    cl.from_string("1-3")
+    assert repr(cl) == "CatsList(ranges=[(1, 3)], layer=0)"

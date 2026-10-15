@@ -423,6 +423,15 @@ class Cats:
     def __init__(self, c_cats=None):
         self.c_cats = c_cats or ctypes.pointer(libvect.line_cats())
 
+    def __len__(self):
+        return self.c_cats.contents.n_cats
+
+    def __contains__(self, cat):
+        return cat in self.cat
+
+    def __repr__(self):
+        return "Cats(%r)" % list(zip(self.layer, self.cat, strict=True))
+
     def reset(self):
         """Reset the C cats struct from previous values."""
         libvect.Vect_reset_cats(self.c_cats)
@@ -446,21 +455,24 @@ class Cats:
         :param layer: the number of layer
         :type layer: int
         """
-        libvect.Vect_cat_set(self.c_cats, layer, cat)
+        libvect.Vect_cat_set(self.c_cats, layer, int(cat))
 
     def delete(self, cat=None, layer=1):
         """If cat is given delete cat from line_cats structure
         (using Vect_field_cat_del) else delete all categories of given layer
         (using Vect_cat_del).
 
-        :param cat: the cat to add
-        :type cat: int
+        :param cat: the cat to delete
+        :type cat: int or None
         :param layer: the number of layer
         :type layer: int
         """
-        if cat:
-            self.n_del = libvect.Vect_field_cat_del(self.c_cats, layer, cat)
-            err_msg = "Layer(%d)/category(%d) number does not exist" % (layer, cat)
+        if cat is not None:
+            self.n_del = libvect.Vect_field_cat_del(self.c_cats, layer, int(cat))
+            err_msg = "Layer(%d)/category(%d) number does not exist" % (
+                layer,
+                int(cat),
+            )
         else:
             self.n_del = libvect.Vect_cat_del(self.c_cats, layer)
             err_msg = "Layer: %r does not exist" % layer
@@ -536,6 +548,15 @@ class CatsList:
         max_values = self.c_cat_list.contents.max
         return [max_values[i] for i in range(self.n_ranges)]
 
+    def __len__(self):
+        return self.c_cat_list.contents.n_ranges
+
+    def __repr__(self):
+        return "CatsList(ranges=%r, layer=%r)" % (
+            list(zip(self.min, self.max, strict=True)),
+            self.layer,
+        )
+
     def __init__(self, c_cat_list=None):
         self.c_cat_list = c_cat_list or ctypes.pointer(libvect.cat_list())
 
@@ -554,11 +575,11 @@ class CatsList:
         """Convert ordered array of integers to cat_list structure.
 
         :param array: the input array containing the cats
-        :type array: ~grass.script.array.array
+        :type array: list or iterable of int
         """
-        # Vect_array_to_cat_list(const int *vals, int nvals, ***)
-        # TODO: it's not working
-        libvect.Vect_array_to_cat_list(array, len(array), self.c_cat_list)
+        vals = [int(v) for v in array]
+        c_vals = (ctypes.c_int * len(vals))(*vals)
+        libvect.Vect_array_to_cat_list(c_vals, len(vals), self.c_cat_list)
 
     def __contains__(self, cat):
         """Check if category number is in list.
