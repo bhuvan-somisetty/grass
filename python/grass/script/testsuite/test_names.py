@@ -221,6 +221,14 @@ class TestLegalizeVectorName(TestCase):
         self.assertTrue(legal_name(legalized))
         self.assertTrue(self.works_for_vector_table_column(legalized))
 
+    def test_sql_keywords(self):
+        """Check that SQL keywords are escaped regardless of case"""
+        for name in ("and", "AND", "Or", "nOt"):
+            legalized = utils.legalize_vector_name(name)
+            self.assertEqual(legalized, f"{name}_")
+            self.assertTrue(legal_name(legalized))
+            self.assertTrue(self.works_for_vector_table_column(legalized))
+
     def test_diff_only_first_character(self):
         """Check two string with only the first character being different"""
         name1 = "1800"
